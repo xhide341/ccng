@@ -43,3 +43,8 @@ next-env.d.ts
 CONTEXT.md
 /docs/
 
+# supabase
+supabase/.temp/
+supabase/.branches/
+
+
