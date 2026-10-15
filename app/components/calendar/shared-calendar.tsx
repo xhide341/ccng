@@ -258,7 +258,7 @@ export function SharedCalendar({
   }
 
   function handleSwitchAccount() {
-    void signInWithGoogle('/space', { prompt: 'select_account consent' });
+    void signInWithGoogle();
   }
 
   function handleUnlinkCalendar() {
@@ -332,7 +332,7 @@ export function SharedCalendar({
           ) : (
             <button
               type="button"
-              onClick={() => signInWithGoogle('/space')}
+              onClick={() => signInWithGoogle()}
               className="cursor-pointer rounded border border-sage/60 bg-sage/15 px-2.5 py-1 font-semibold text-sage-dark transition-colors hover:bg-sage/25"
             >
               Connect Google Calendar

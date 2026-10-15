@@ -2,25 +2,22 @@ import { getSupabaseBrowserClient } from './supabase/client';
 
 export const DEMO_COOKIE_NAME = 'ccng_demo_user';
 
-export async function signInWithGoogle(
-  next: string = '/space',
-  options?: { prompt?: string }
-) {
+export async function signInWithGoogle() {
   if (typeof document !== 'undefined') {
     document.cookie = `${DEMO_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
   }
 
   const supabase = getSupabaseBrowserClient();
   const origin = window.location.origin;
-  
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      redirectTo: `${origin}/auth/callback`,
       scopes: 'https://www.googleapis.com/auth/calendar.events',
       queryParams: {
         access_type: 'offline',
-        prompt: options?.prompt || 'consent',
+        prompt: 'consent',
       },
     },
   });
