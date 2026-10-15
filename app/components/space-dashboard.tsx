@@ -4,21 +4,20 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { DailyEntry } from '../lib/daily-content';
 import type { CalendarEvent } from '../lib/calendar-types';
-import {
-  createTodo,
-  updateTodo,
-  deleteTodo,
-} from '../lib/space-repository';
-import { createPairingCodeAction } from '../lib/actions/pairing';
+import { createTodo, updateTodo, deleteTodo } from '../lib/space-repository';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
-import { TodoItem } from './todo-item';
+import { DailyTodo } from './daily-todo';
 import { SharedCalendar } from './calendar/shared-calendar';
-import { Topbar } from './topbar';
-import { WelcomeHeader } from './welcome-header';
-import { MantraBanner } from './mantra-banner';
+import { Header } from './header';
+import { WelcomeHero } from './welcome-hero';
+import { DailyQuotes } from './daily-quotes';
+import { PostItNote } from './post-it-note';
 import { NoticeToast } from './notice-toast';
 import { PartnerCursor } from './partner-cursor';
 import { RecentActivity } from './recent-activity';
+import { SpaceRecap } from './space-recap';
+import { SpaceSettings } from './space-settings';
+import type { DailyRecap } from '../lib/recap';
 import { logBrowserActivity } from '../lib/activity-client';
 import type { SpaceActivity } from '../lib/activity-types';
 
@@ -41,13 +40,23 @@ type SpaceDashboardProps = {
   code?: string;
   userEmail?: string;
   userName?: string;
+  userFullName?: string;
   partnerName?: string;
+  userAvatarUrl?: string;
+  partnerAvatarUrl?: string;
   initialTodos?: Todo[];
   initialCalendarEvents?: CalendarEvent[];
   hasGoogleCalendar?: boolean;
   isDemo?: boolean;
   dailyEntry?: DailyEntry | null;
   initialActivities?: SpaceActivity[];
+  initialNote?: {
+    content: string;
+    authorId?: string | null;
+    updatedAt?: string | null;
+  } | null;
+  initialRecap?: DailyRecap;
+  initialDiscordWebhookUrl?: string | null;
 };
 
 const demoTodos: Todo[] = [
@@ -98,13 +107,19 @@ export function SpaceDashboard({
   code,
   userEmail,
   userName,
+  userFullName,
   partnerName: initialPartnerName,
+  userAvatarUrl,
+  partnerAvatarUrl,
   initialTodos: serverTodos,
   initialCalendarEvents,
   hasGoogleCalendar,
   isDemo,
   dailyEntry: initialDailyEntry,
   initialActivities,
+  initialNote,
+  initialRecap,
+  initialDiscordWebhookUrl,
 }: SpaceDashboardProps = {}) {
   const [todos, setTodos] = useState<Todo[]>(() =>
     isDemo ? demoTodos : (serverTodos ?? [])
@@ -113,7 +128,6 @@ export function SpaceDashboard({
 
   const [activeCode, setActiveCode] = useState<string | undefined>(code);
   const [copied, setCopied] = useState(false);
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   // Realtime state
   const [partnerOnline, setPartnerOnline] = useState(false);
@@ -135,30 +149,9 @@ export function SpaceDashboard({
   const hasLoggedBroadcastRef = useRef<boolean>(false);
   const hasLoggedReceiveRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    if (!isSolo || !spaceId || activeCode) {
-      return;
-    }
 
-    let isMounted = true;
 
-    async function setupInitialPairingCode() {
-      try {
-        const res = await createPairingCodeAction();
-        if (isMounted && res.success && res.code) {
-          setActiveCode(res.code);
-        }
-      } catch (err) {
-        console.error('Failed to auto-generate pairing code:', err);
-      }
-    }
 
-    void setupInitialPairingCode();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isSolo, spaceId, activeCode]);
 
   async function handleCopyCode() {
     if (!activeCode) return;
@@ -172,24 +165,7 @@ export function SpaceDashboard({
     }
   }
 
-  async function handleGenerateNewCode() {
-    if (!spaceId) return;
-    setIsGeneratingCode(true);
-    try {
-      const res = await createPairingCodeAction();
-      if (res.success && res.code) {
-        setActiveCode(res.code);
-        setNotice(`New pairing code generated: ${res.code}`);
-      } else {
-        setNotice(res.error || 'Could not generate new code. Please try again.');
-      }
-    } catch (err) {
-      console.error('Failed to generate new code:', err);
-      setNotice('Could not generate new code. Please try again.');
-    } finally {
-      setIsGeneratingCode(false);
-    }
-  }
+
 
   const today = new Date();
   const dailyEntry = initialDailyEntry ?? null;
@@ -207,7 +183,7 @@ export function SpaceDashboard({
 
   const displayName = isDemo ? 'Mara' : userName;
   const greeting = getGreeting(today);
-  const headerTitle = displayName
+  const heroTitle = displayName
     ? `${greeting}, ${displayName}`
     : 'Cool, Calm, and Grounded';
 
@@ -542,7 +518,6 @@ export function SpaceDashboard({
     }
   }
 
-
   async function handleUpdateTodo(
     id: number | string,
     updated: { title: string; tag: string; assignee: string; priority: boolean }
@@ -730,20 +705,24 @@ export function SpaceDashboard({
         name={partnerCursor.name || partnerName}
         visible={partnerCursor.visible && !isDemo}
       />
-      <Topbar
+      <Header
         spaceLabel={spaceLabel}
         userEmail={userEmail}
+        userName={userName || displayName}
+        userFullName={userFullName}
+        userAvatarUrl={userAvatarUrl}
         isDemo={isDemo}
         activeCode={activeCode}
         homeLink="/space"
+        canLeaveSpace={true}
       />
 
       <div
         ref={contentContainerRef}
-        className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 md:px-12 md:py-16"
+        className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 md:px-12 md:py-16"
       >
-        <WelcomeHeader
-          title={headerTitle}
+        <WelcomeHero
+          title={heroTitle}
           presenceText={presenceText}
           isPending={isSolo}
           isOnline={isSolo ? undefined : partnerOnline}
@@ -768,42 +747,37 @@ export function SpaceDashboard({
                       {copied ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    className="cursor-pointer rounded-md border border-line bg-paper p-1.5 text-muted transition-colors hover:border-ink hover:text-ink disabled:cursor-wait disabled:opacity-50"
-                    onClick={handleGenerateNewCode}
-                    disabled={isGeneratingCode}
-                    title="Generate fresh code"
-                    aria-label="Generate fresh pairing code"
-                  >
-                    <svg
-                      className={`h-4 w-4 ${isGeneratingCode ? 'animate-spin' : ''}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth="2"
-                      stroke="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
-                      />
-                    </svg>
-                  </button>
                 </div>
               </div>
             ) : undefined
           }
         />
 
-        {dailyEntry && (
-          <MantraBanner
-            mantra={dailyEntry.mantra}
-            source={dailyEntry.source}
-            date={today}
+        <div className="my-6 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2">
+          {dailyEntry && (
+            <DailyQuotes
+              mantra={dailyEntry.mantra}
+              source={dailyEntry.source}
+              date={today}
+              className="h-full"
+            />
+          )}
+
+          <PostItNote
+            spaceId={spaceId}
+            userId={userId}
+            userName={userName}
+            userAvatarUrl={userAvatarUrl}
+            partnerId={partnerId}
+            partnerName={partnerName}
+            partnerAvatarUrl={partnerAvatarUrl}
+            initialContent={initialNote?.content || ''}
+            initialAuthorId={initialNote?.authorId || null}
+            initialUpdatedAt={initialNote?.updatedAt || null}
+            isDemo={isDemo}
+            className="h-full"
           />
-        )}
+        </div>
 
         {/* Expanded Todo Section */}
         <section
@@ -875,7 +849,7 @@ export function SpaceDashboard({
               ) : (
                 <ul className="m-0 list-none divide-y divide-line p-0">
                   {column1Todos.map((todo) => (
-                    <TodoItem
+                    <DailyTodo
                       key={`col1-${todo.id}`}
                       todo={todo}
                       initialEditing={todo.isNew}
@@ -920,7 +894,7 @@ export function SpaceDashboard({
               ) : (
                 <ul className="m-0 list-none divide-y divide-line p-0">
                   {column2Todos.map((todo) => (
-                    <TodoItem
+                    <DailyTodo
                       key={`col2-${todo.id}`}
                       todo={todo}
                       initialEditing={todo.isNew}
@@ -951,7 +925,7 @@ export function SpaceDashboard({
         />
 
         {/* Lower Grid: Activity & Pairing summary */}
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <RecentActivity
             spaceId={spaceId}
             userId={userId}
@@ -960,43 +934,38 @@ export function SpaceDashboard({
             isDemo={isDemo}
           />
 
-          <aside
-            className="relative flex flex-col justify-between overflow-hidden rounded-md border border-line bg-paper p-6 shadow-xs sm:p-8"
-            aria-labelledby="pairing-title"
-          >
-            <div>
-              <p className="m-0 mb-1 text-[10px] leading-tight font-bold tracking-widest text-sage-dark uppercase">
-                Connected Space
-              </p>
-              <h2
-                id="pairing-title"
-                className="m-0 mb-2 font-display text-2xl font-normal text-ink"
-              >
-                Just the two of you.
-              </h2>
-              <p className="m-0 text-sm leading-relaxed text-muted">
-                Link accounts with your partner to share a calm, synchronized
-                Space.
-              </p>
-            </div>
+          <div className="flex flex-col gap-6">
+            <SpaceRecap
+              summary={
+                initialRecap?.summary ||
+                (isSolo
+                  ? 'Yesterday was steady and focused. Ready for a fresh start today.'
+                  : 'Yesterday was steady and well-carried! Keep up the wonderful momentum together.')
+              }
+              completedCount={initialRecap?.completedCount ?? 0}
+              dateLabel={initialRecap?.dateLabel || 'Yesterday'}
+              userName={displayName}
+              partnerName={partnerName}
+              isSolo={isSolo}
+              pairingCode={activeCode || code}
+              onCopyPairingCode={handleCopyCode}
+              isCopied={copied}
+              tasks={initialRecap?.tasks}
+            />
 
-            <div className="my-6 flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-full border border-line bg-paper-soft font-display text-sm font-semibold text-sage-dark">
-                M
-              </span>
-              <span className="w-4 border-t border-dashed border-stone" />
-              <span className="grid h-9 w-9 place-items-center rounded-full border border-line bg-paper-soft font-display text-sm font-semibold text-sage-dark">
-                J
-              </span>
-            </div>
-
-            <div className="mt-auto flex items-center justify-between border-t border-line pt-4">
-              <span className="text-xs text-muted">Pairing Code</span>
-              <strong className="font-mono text-sm tracking-wider text-ink">
-                {activeCode || code || 'CCNG-PAIR'}
-              </strong>
-            </div>
-          </aside>
+            <SpaceSettings
+              spaceId={spaceId}
+              userName={displayName}
+              userAvatarUrl={userAvatarUrl}
+              partnerName={partnerName}
+              partnerAvatarUrl={partnerAvatarUrl}
+              pairingCode={activeCode || code}
+              isSolo={isSolo}
+              hasGoogleCalendar={hasGoogleCalendar}
+              initialDiscordWebhookUrl={initialDiscordWebhookUrl}
+              isDemo={isDemo}
+            />
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-type WelcomeHeaderProps = {
+export type WelcomeHeroProps = {
   title?: string;
   description?: string;
   presenceText?: string;
@@ -16,7 +16,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
 });
 
-export function WelcomeHeader({
+export function WelcomeHero({
   title = 'Cool, Calm, and Grounded',
   description = 'A clear place for the things you are carrying together.',
   presenceText,
@@ -24,24 +24,24 @@ export function WelcomeHeader({
   isOnline,
   date = new Date(),
   rightSlot,
-}: WelcomeHeaderProps) {
+}: WelcomeHeroProps) {
   return (
     <section
       className="flex animate-[rise-in_700ms_ease-out_both] flex-col justify-between gap-6 md:flex-row md:items-end md:gap-8"
-      aria-labelledby="welcome-heading"
+      aria-labelledby="hero-heading"
     >
       <div>
         <p className="m-0 mb-2 text-[10px] leading-tight font-bold tracking-widest text-sage-dark uppercase">
           {dateFormatter.format(date)}
         </p>
         <h1
-          id="welcome-heading"
+          id="hero-heading"
           suppressHydrationWarning
-          className="m-0 max-w-[680px] font-display text-4xl leading-[0.95] font-normal tracking-tight text-ink sm:text-5xl md:text-6xl lg:text-7xl"
+          className="m-0 max-w-[680px] font-display text-2xl leading-tight font-normal tracking-tight text-ink sm:text-3xl md:text-4xl lg:text-5xl"
         >
           {title}
         </h1>
-        <p className="mt-4 mb-0 max-w-[440px] text-sm leading-relaxed text-muted sm:text-base">
+        <p className="mt-2.5 mb-0 max-w-[440px] text-sm leading-relaxed text-muted sm:text-base">
           {description}
         </p>
       </div>

@@ -13,6 +13,7 @@ import { signInWithGoogle } from '../../lib/auth';
 import { CalendarMonthGrid } from './calendar-month-grid';
 import { CalendarAgenda } from './calendar-agenda';
 import { CalendarEventModal } from './calendar-event-modal';
+import { ConfirmDialog } from '../confirm-dialog';
 
 export type SharedCalendarProps = {
   spaceId?: string;
@@ -49,6 +50,14 @@ export function SharedCalendar({
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isManuallyUnlinked, setIsManuallyUnlinked] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<CalendarEvent | null>(
+    null
+  );
+  const [confirmUnlink, setConfirmUnlink] = useState(false);
+  const [noticeDialog, setNoticeDialog] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
 
   const isLinked = hasGoogleCalendar && !isManuallyUnlinked;
 
@@ -149,17 +158,19 @@ export function SharedCalendar({
     }
   }
 
-  async function handleDeletePlan(eventId: string) {
-    const eventToDelete = events.find((e) => e.id === eventId);
-    if (!eventToDelete) return;
+  function handleDeletePlan(eventId: string) {
+    const target = events.find((e) => e.id === eventId);
+    if (!target) return;
+    setEventToDelete(target);
+  }
 
-    const confirmed = window.confirm(
-      `Delete "${eventToDelete.title}" from Google Calendar?`
-    );
-    if (!confirmed) return;
+  async function executeDeletePlan() {
+    if (!eventToDelete) return;
+    const target = eventToDelete;
+    setEventToDelete(null);
 
     // Optimistically remove from state
-    setEvents((prev) => prev.filter((e) => e.id !== eventId));
+    setEvents((prev) => prev.filter((e) => e.id !== target.id));
 
     if (isDemo) {
       return;
@@ -167,19 +178,25 @@ export function SharedCalendar({
 
     try {
       const res = await deleteCalendarEventAction(
-        eventId,
+        target.id,
         spaceId,
-        eventToDelete.title
+        target.title
       );
       if (!res.success) {
         // Rollback on failure
-        setEvents((prev) => [...prev, eventToDelete]);
-        alert(res.error || 'Failed to delete event from Google Calendar.');
+        setEvents((prev) => [...prev, target]);
+        setNoticeDialog({
+          title: 'Delete Failed',
+          message: res.error || 'Failed to delete event from Google Calendar.',
+        });
       }
     } catch {
       // Rollback on unexpected error
-      setEvents((prev) => [...prev, eventToDelete]);
-      alert('Failed to delete event. Please try again.');
+      setEvents((prev) => [...prev, target]);
+      setNoticeDialog({
+        title: 'Delete Failed',
+        message: 'Failed to delete event. Please try again.',
+      });
     }
   }
 
@@ -244,22 +261,28 @@ export function SharedCalendar({
     void signInWithGoogle('/space', { prompt: 'select_account consent' });
   }
 
-  async function handleUnlinkCalendar() {
-    const confirmed = window.confirm(
-      'Disconnect Google Calendar? Scheduled plans from Google will no longer be visible.'
-    );
-    if (!confirmed) return;
+  function handleUnlinkCalendar() {
+    setConfirmUnlink(true);
+  }
 
+  async function executeUnlinkCalendar() {
+    setConfirmUnlink(false);
     try {
       const res = await unlinkGoogleCalendarAction();
       if (!res.success) {
-        alert(res.error || 'Failed to unlink Google Calendar.');
+        setNoticeDialog({
+          title: 'Disconnect Failed',
+          message: res.error || 'Failed to unlink Google Calendar.',
+        });
         return;
       }
       setIsManuallyUnlinked(true);
       setEvents(isDemo ? getDemoCalendarEvents() : []);
     } catch {
-      alert('Failed to unlink Google Calendar. Please try again.');
+      setNoticeDialog({
+        title: 'Disconnect Failed',
+        message: 'Failed to unlink Google Calendar. Please try again.',
+      });
     }
   }
 
@@ -302,11 +325,15 @@ export function SharedCalendar({
                 Google Calendar Synced
               </span>
             )
+          ) : isDemo ? (
+            <span className="cursor-default rounded border border-sage/60 bg-sage/15 px-2.5 py-1 font-semibold text-sage-dark select-none">
+              Connect Google Calendar
+            </span>
           ) : (
             <button
               type="button"
               onClick={() => signInWithGoogle('/space')}
-              className="rounded border border-sage/60 bg-sage/15 px-2.5 py-1 font-semibold text-sage-dark transition-colors hover:bg-sage/25"
+              className="cursor-pointer rounded border border-sage/60 bg-sage/15 px-2.5 py-1 font-semibold text-sage-dark transition-colors hover:bg-sage/25"
             >
               Connect Google Calendar
             </button>
@@ -348,10 +375,11 @@ export function SharedCalendar({
           onUpdatePlan={handleUpdatePlan}
           onDeletePlan={handleDeletePlan}
           hasGoogleCalendar={isLinked}
-          onSyncNow={handleSyncNow}
-          onSwitchAccount={handleSwitchAccount}
-          onUnlinkCalendar={handleUnlinkCalendar}
+          onSyncNow={isDemo ? undefined : handleSyncNow}
+          onSwitchAccount={isDemo ? undefined : handleSwitchAccount}
+          onUnlinkCalendar={isDemo ? undefined : handleUnlinkCalendar}
           isSyncing={isSyncing}
+          isDemo={isDemo}
         />
       </div>
 
@@ -365,6 +393,40 @@ export function SharedCalendar({
           isSaving={isCreatingPlan}
         />
       )}
+
+      {/* Delete Event Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={!!eventToDelete}
+        title="Confirm Deletion"
+        description={`Delete "${eventToDelete?.title}" from Google Calendar?`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => void executeDeletePlan()}
+        onCancel={() => setEventToDelete(null)}
+      />
+
+      {/* Unlink Calendar Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={confirmUnlink}
+        title="Disconnect Google Calendar?"
+        description="Scheduled plans from Google will no longer be visible."
+        confirmLabel="Disconnect"
+        variant="danger"
+        onConfirm={() => void executeUnlinkCalendar()}
+        onCancel={() => setConfirmUnlink(false)}
+      />
+
+      {/* Error / Notice Modal */}
+      <ConfirmDialog
+        isOpen={!!noticeDialog}
+        title={noticeDialog?.title || 'Notice'}
+        description={noticeDialog?.message || ''}
+        confirmLabel="OK"
+        hideCancel
+        variant="default"
+        onConfirm={() => setNoticeDialog(null)}
+        onCancel={() => setNoticeDialog(null)}
+      />
     </section>
   );
 }

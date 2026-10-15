@@ -1,5 +1,5 @@
-import { getSupabaseBrowserClient } from './supabase/client';
 import { ActivityKind, ActivityPayload } from './activity-types';
+import { logActivityAction } from './actions/activity';
 
 export async function logBrowserActivity({
   spaceId,
@@ -11,15 +11,8 @@ export async function logBrowserActivity({
   payload: ActivityPayload;
 }) {
   try {
-    const client = getSupabaseBrowserClient();
-    const {
-      data: { user },
-    } = await client.auth.getUser();
-    if (!user) return;
-
-    await client.from('activities').insert({
-      space_id: spaceId,
-      actor_id: user.id,
+    await logActivityAction({
+      spaceId,
       kind,
       payload,
     });

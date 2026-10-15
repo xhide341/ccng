@@ -49,6 +49,41 @@ export type Database = {
           },
         ]
       }
+      daily_recaps: {
+        Row: {
+          completed_count: number
+          created_at: string
+          recap_date: string
+          space_id: string
+          summary: string
+          tasks: Json
+        }
+        Insert: {
+          completed_count?: number
+          created_at?: string
+          recap_date?: string
+          space_id: string
+          summary: string
+          tasks?: Json
+        }
+        Update: {
+          completed_count?: number
+          created_at?: string
+          recap_date?: string
+          space_id?: string
+          summary?: string
+          tasks?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_recaps_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pairing_codes: {
         Row: {
           code: string
@@ -87,24 +122,59 @@ export type Database = {
           },
         ]
       }
+      space_notes: {
+        Row: {
+          author_id: string | null
+          content: string
+          space_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          content?: string
+          space_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          content?: string
+          space_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_notes_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: true
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spaces: {
         Row: {
           calendar_feed_url: string | null
+          code: string
           created_at: string
+          discord_webhook_url: string | null
           id: string
           user_1: string
           user_2: string | null
         }
         Insert: {
           calendar_feed_url?: string | null
+          code: string
           created_at?: string
+          discord_webhook_url?: string | null
           id?: string
           user_1: string
           user_2?: string | null
         }
         Update: {
           calendar_feed_url?: string | null
+          code?: string
           created_at?: string
+          discord_webhook_url?: string | null
           id?: string
           user_1?: string
           user_2?: string | null
@@ -201,7 +271,9 @@ export type Database = {
         Returns: string
       }
       create_space: { Args: never; Returns: string }
+      generate_space_code: { Args: never; Returns: string }
       get_space_partner: { Args: { p_space_id: string }; Returns: Json }
+      leave_space: { Args: never; Returns: undefined }
       redeem_pairing_code: { Args: { p_code: string }; Returns: string }
     }
     Enums: {

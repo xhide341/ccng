@@ -24,6 +24,7 @@ type CalendarAgendaProps = {
   onSwitchAccount?: () => void;
   onUnlinkCalendar?: () => void;
   isSyncing?: boolean;
+  isDemo?: boolean;
 };
 
 function formatEventTime(isoString: string, allDay: boolean): string {
@@ -141,7 +142,7 @@ function InlineEventEditForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           disabled={isSaving}
-          className="rounded border border-line bg-paper px-2.5 py-1 text-xs text-ink placeholder:text-muted transition-colors focus:border-ink focus:outline-none"
+          className="rounded border border-line bg-paper px-2.5 py-1 text-xs text-ink transition-colors placeholder:text-muted focus:border-ink focus:outline-none"
           placeholder="Event title"
         />
       </div>
@@ -174,7 +175,7 @@ function InlineEventEditForm({
           </div>
 
           <label
-            className={`group flex shrink-0 cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-ink transition-colors hover:text-sage-dark ${
+            className={`group flex shrink-0 cursor-pointer items-center gap-1.5 text-xs font-medium text-ink transition-colors select-none hover:text-sage-dark ${
               isSaving ? 'cursor-not-allowed opacity-50' : ''
             }`}
           >
@@ -223,7 +224,7 @@ function InlineEventEditForm({
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           disabled={isSaving}
-          className="rounded border border-line bg-paper px-2.5 py-1 text-xs text-ink placeholder:text-muted transition-colors focus:border-ink focus:outline-none"
+          className="rounded border border-line bg-paper px-2.5 py-1 text-xs text-ink transition-colors placeholder:text-muted focus:border-ink focus:outline-none"
           placeholder="Optional location"
         />
       </div>
@@ -237,7 +238,7 @@ function InlineEventEditForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           disabled={isSaving}
-          className="resize-none rounded border border-line bg-paper px-2.5 py-1 text-xs text-ink placeholder:text-muted transition-colors focus:border-ink focus:outline-none"
+          className="resize-none rounded border border-line bg-paper px-2.5 py-1 text-xs text-ink transition-colors placeholder:text-muted focus:border-ink focus:outline-none"
           placeholder="Optional notes..."
         />
       </div>
@@ -417,7 +418,7 @@ function AgendaEventCard({
                 <button
                   type="button"
                   onClick={handleStartEdit}
-                  className="flex cursor-pointer items-center justify-center rounded p-0.5 text-muted opacity-60 transition-colors hover:bg-black/5 hover:text-ink focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                  className="flex cursor-pointer items-center justify-center rounded p-0.5 text-muted transition-colors hover:text-ink"
                   title="Edit plan"
                   aria-label={`Edit ${event.title || 'plan'}`}
                 >
@@ -442,7 +443,7 @@ function AgendaEventCard({
                 <button
                   type="button"
                   onClick={onDelete}
-                  className="flex cursor-pointer items-center justify-center rounded p-0.5 text-muted opacity-60 transition-colors hover:bg-clay/10 hover:text-clay focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                  className="flex cursor-pointer items-center justify-center rounded p-0.5 text-muted transition-colors hover:text-clay"
                   title="Delete plan"
                   aria-label={`Delete ${event.title || 'plan'}`}
                 >
@@ -468,8 +469,20 @@ function AgendaEventCard({
           </div>
 
           {event.location && (
-            <div className="mt-1 flex items-center gap-1 text-[11px] text-muted">
-              <span aria-hidden="true">📍</span>
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3 w-3 shrink-0 text-muted"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
               <span className="truncate">{event.location}</span>
             </div>
           )}
@@ -496,6 +509,7 @@ export function CalendarAgenda({
   onSwitchAccount,
   onUnlinkCalendar,
   isSyncing = false,
+  isDemo = false,
 }: CalendarAgendaProps) {
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -551,9 +565,24 @@ export function CalendarAgenda({
             <button
               type="button"
               onClick={onAddPlan}
-              className="cursor-pointer rounded-md bg-sage-dark px-4 py-2 text-xs font-semibold text-paper shadow-2xs"
+              className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md bg-sage-dark px-3 text-xs font-semibold text-paper shadow-2xs transition-opacity hover:opacity-90 focus:outline-none"
             >
-              + Add Plan
+              <svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                className="h-3.25 w-3.25"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Add Plan</span>
             </button>
           )}
 
@@ -678,6 +707,27 @@ export function CalendarAgenda({
                     </button>
                   )}
                 </>
+              ) : isDemo || !onSwitchAccount ? (
+                <div
+                  className="flex w-full cursor-default select-none items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs font-medium text-muted"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    className="h-3.5 w-3.5 text-muted/60"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </svg>
+                  Connect Google Calendar
+                </div>
               ) : (
                 <button
                   type="button"

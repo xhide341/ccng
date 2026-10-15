@@ -32,6 +32,14 @@ export function signInAsDemo() {
   }
 }
 
+export function exitDemoSession() {
+  if (typeof document !== 'undefined') {
+    document.cookie = `${DEMO_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = '/';
+  }
+}
+
 export async function signOutUser() {
   if (typeof document !== 'undefined') {
     document.cookie = `${DEMO_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;

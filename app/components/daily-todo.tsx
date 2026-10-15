@@ -11,7 +11,7 @@ export type TodoData = {
   completed: boolean;
 };
 
-export type TodoItemProps = {
+export type DailyTodoProps = {
   todo?: TodoData;
   title?: string;
   tag?: string;
@@ -34,7 +34,7 @@ export type TodoItemProps = {
   onEditingChange?: (isEditing: boolean) => void;
 };
 
-export function TodoItem(props: TodoItemProps) {
+export function DailyTodo(props: DailyTodoProps) {
   const title = props.todo ? props.todo.title : (props.title ?? '');
   const tag = props.todo ? props.todo.tag : (props.tag ?? '');
   const assignee = props.todo ? props.todo.assignee : (props.assignee ?? '');
@@ -216,7 +216,7 @@ export function TodoItem(props: TodoItemProps) {
                 setIsEditingTitle(true);
               }
             }}
-            className={`-mx-1 block cursor-text rounded border border-transparent px-1 py-0.5 text-sm leading-5 wrap-break-word transition-colors ${
+            className={`-mx-1 block cursor-text rounded border border-transparent px-1 py-0.5 text-sm leading-5 break-words [overflow-wrap:anywhere] transition-colors ${
               completed
                 ? 'text-muted line-through decoration-[#b7c2b8]'
                 : 'text-ink'
@@ -310,7 +310,7 @@ export function TodoItem(props: TodoItemProps) {
                   className={`flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left text-xs transition-colors hover:bg-paper-soft ${
                     assignee === 'You' ||
                     assignee.toLowerCase() === userName.toLowerCase()
-                      ? 'font-semibold text-sage-dark'
+                       ? 'font-semibold text-sage-dark'
                       : 'text-ink'
                   }`}
                 >

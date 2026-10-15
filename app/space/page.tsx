@@ -5,6 +5,7 @@ import { SpaceDashboard } from '../components/space-dashboard';
 import { SpaceOnboarding } from '../components/space-onboarding';
 import { DEMO_COOKIE_NAME } from '../lib/auth';
 import { getDailyEntry } from '../lib/daily-content';
+import { getDailyRecap } from '../lib/recap';
 import { getCalendarEventsAction } from '../lib/actions/calendar';
 
 type SpacePageProps = {
@@ -22,13 +23,17 @@ export default async function SpacePage({ searchParams }: SpacePageProps) {
 
   if (isDemo) {
     const demoEvents = await getCalendarEventsAction(true);
+    const demoRecap = await getDailyRecap({ isDemo: true });
     return (
       <SpaceDashboard
         code={codeParam}
-        userEmail={undefined}
+        userEmail="mara@ccng.app"
+        userName="Mara"
+        userFullName="Mara Jensen"
         initialCalendarEvents={demoEvents}
         isDemo={true}
         dailyEntry={dailyEntry}
+        initialRecap={demoRecap}
       />
     );
   }
@@ -44,36 +49,47 @@ export default async function SpacePage({ searchParams }: SpacePageProps) {
 
   const userEmail = user.email;
 
+  const firstName =
+    user.user_metadata?.given_name ||
+    user.user_metadata?.full_name?.split(' ')[0] ||
+    user.email?.split('@')[0] ||
+    'User';
+
+  const userFullName =
+    (user.user_metadata?.full_name as string | undefined) ||
+    (user.user_metadata?.name as string | undefined) ||
+    firstName;
+
+  const userAvatarUrl =
+    (user.user_metadata?.avatar_url as string | undefined) ||
+    (user.user_metadata?.picture as string | undefined) ||
+    undefined;
+
   const { data: space } = await supabase
     .from('spaces')
-    .select('id, user_1, user_2')
+    .select('id, user_1, user_2, code, discord_webhook_url')
     .or(`user_1.eq.${user.id},user_2.eq.${user.id}`)
     .maybeSingle();
 
   if (!space) {
-    return <SpaceOnboarding userEmail={userEmail} initialCode={codeParam} />;
+    return (
+      <SpaceOnboarding
+        userEmail={userEmail}
+        userName={firstName}
+        userFullName={userFullName}
+        userAvatarUrl={userAvatarUrl}
+        initialCode={codeParam}
+      />
+    );
   }
 
   const isSolo = space.user_2 === null;
   const isUser1 = user.id === space.user_1;
-
-  let activeCode = codeParam;
-  if (!activeCode && isSolo) {
-    const { data: pairingData } = await supabase
-      .from('pairing_codes')
-      .select('code')
-      .eq('space_id', space.id)
-      .is('redeemed_at', null)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    activeCode = pairingData?.code;
-  }
+  const activeCode = space.code || codeParam;
 
   let partnerName: string | undefined;
   let partnerId: string | undefined;
+  let partnerAvatarUrl: string | undefined;
 
   if (!isSolo) {
     try {
@@ -82,32 +98,75 @@ export default async function SpacePage({ searchParams }: SpacePageProps) {
       });
 
       if (partnerData && typeof partnerData === 'object') {
-        const p = partnerData as { display_name?: unknown; id?: unknown };
+        const p = partnerData as {
+          display_name?: unknown;
+          id?: unknown;
+          avatar_url?: unknown;
+        };
         if (typeof p.display_name === 'string') {
           partnerName = p.display_name;
         }
         if (typeof p.id === 'string') {
           partnerId = p.id;
         }
+        if (typeof p.avatar_url === 'string') {
+          partnerAvatarUrl = p.avatar_url;
+        }
       }
     } catch {
       partnerName = undefined;
       partnerId = undefined;
+      partnerAvatarUrl = undefined;
     }
   }
 
-  const firstName =
-    user.user_metadata?.given_name ||
-    user.user_metadata?.full_name?.split(' ')[0] ||
-    user.email?.split('@')[0] ||
-    'User';
 
-  const { data: dbTodos } = await supabase
-    .from('todos')
-    .select('*')
-    .eq('space_id', space.id)
-    .order('created_at', { ascending: false });
 
+  const initialRecap = await getDailyRecap({
+    spaceId: space.id,
+    userName: firstName,
+    partnerName,
+    isDemo: false,
+    userId: user.id,
+  });
+
+  // Parallelize remaining independent space data queries
+  const [
+    todosResult,
+    initialCalendarEvents,
+    hasGoogleCalendarResult,
+    activitiesResult,
+    noteResult,
+  ] = await Promise.all([
+    supabase
+      .from('todos')
+      .select('*')
+      .eq('space_id', space.id)
+      .order('created_at', { ascending: false }),
+    getCalendarEventsAction(false),
+    Promise.resolve(
+      supabase
+        .from('user_google_tokens')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+    )
+      .then((res) => !!res.data)
+      .catch(() => false),
+    supabase
+      .from('activities')
+      .select('*')
+      .eq('space_id', space.id)
+      .order('created_at', { ascending: false })
+      .limit(30),
+    supabase
+      .from('space_notes')
+      .select('*')
+      .eq('space_id', space.id)
+      .maybeSingle(),
+  ]);
+
+  const dbTodos = todosResult.data;
   const initialTodos = (dbTodos || []).map((row) => ({
     id: row.id,
     title: row.title,
@@ -115,41 +174,33 @@ export default async function SpacePage({ searchParams }: SpacePageProps) {
     assignee: row.assignee_user_id
       ? row.assignee_user_id === user.id
         ? firstName
-        : (partnerName || 'Partner')
+        : partnerName || 'Partner'
       : 'Both',
     priority: row.priority,
     completed: row.completed,
   }));
 
-  const initialCalendarEvents = await getCalendarEventsAction(false);
+  const hasGoogleCalendar = hasGoogleCalendarResult;
 
-  let hasGoogleCalendar = false;
-  try {
-    const { data: tokenRow } = await supabase
-      .from('user_google_tokens')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    hasGoogleCalendar = !!tokenRow;
-  } catch {
-    hasGoogleCalendar = false;
-  }
-
-  const { data: dbActivities } = await supabase
-    .from('activities')
-    .select('*')
-    .eq('space_id', space.id)
-    .order('created_at', { ascending: false })
-    .limit(30);
-
+  const dbActivities = activitiesResult.data;
   const initialActivities = (dbActivities || []).map((row) => ({
     id: row.id,
     space_id: row.space_id,
     actor_id: row.actor_id,
     kind: row.kind as import('../lib/activity-types').ActivityKind,
-    payload: (row.payload as import('../lib/activity-types').ActivityPayload) || {},
+    payload:
+      (row.payload as import('../lib/activity-types').ActivityPayload) || {},
     created_at: row.created_at,
   }));
+
+  const dbNote = noteResult.data;
+  const initialNote = dbNote
+    ? {
+        content: dbNote.content,
+        authorId: dbNote.author_id,
+        updatedAt: dbNote.updated_at,
+      }
+    : null;
 
   return (
     <SpaceDashboard
@@ -161,13 +212,19 @@ export default async function SpacePage({ searchParams }: SpacePageProps) {
       code={activeCode}
       userEmail={userEmail}
       userName={firstName}
+      userFullName={userFullName}
       partnerName={partnerName}
+      userAvatarUrl={userAvatarUrl}
+      partnerAvatarUrl={partnerAvatarUrl}
       initialTodos={initialTodos}
       initialCalendarEvents={initialCalendarEvents}
       hasGoogleCalendar={hasGoogleCalendar}
       isDemo={false}
       dailyEntry={dailyEntry}
       initialActivities={initialActivities}
+      initialNote={initialNote}
+      initialRecap={initialRecap}
+      initialDiscordWebhookUrl={space.discord_webhook_url}
     />
   );
 }

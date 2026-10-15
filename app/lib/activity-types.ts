@@ -9,7 +9,8 @@ export type ActivityKind =
   | 'calendar_created'
   | 'calendar_updated'
   | 'calendar_deleted'
-  | 'pairing_redeemed';
+  | 'pairing_redeemed'
+  | 'note_updated';
 
 export type ActivityPayload = {
   title?: string;
@@ -19,6 +20,7 @@ export type ActivityPayload = {
   allDay?: boolean;
   location?: string;
   partnerName?: string;
+  notePreview?: string;
   [key: string]: Json | undefined;
 };
 
@@ -86,6 +88,8 @@ export function getActivityDotColor(kind: ActivityKind): string {
       return 'bg-clay';
     case 'pairing_redeemed':
       return 'bg-sage-dark';
+    case 'note_updated':
+      return 'bg-amber-400';
     case 'todo_updated':
     case 'todo_uncompleted':
     case 'todo_deleted':

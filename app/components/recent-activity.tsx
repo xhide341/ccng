@@ -15,6 +15,7 @@ type RecentActivityProps = {
   partnerName?: string;
   initialActivities?: SpaceActivity[];
   isDemo?: boolean;
+  className?: string;
 };
 
 function renderActivityDescription(
@@ -83,6 +84,12 @@ function renderActivityDescription(
           <strong>{actor}</strong> cancelled plan <em>{title}</em>.
         </span>
       );
+    case 'note_updated':
+      return (
+        <span>
+          <strong>{actor}</strong> updated the sticky note.
+        </span>
+      );
     default:
       return (
         <span>
@@ -98,12 +105,12 @@ export function RecentActivity({
   partnerName,
   initialActivities,
   isDemo = false,
+  className = '',
 }: RecentActivityProps) {
   const [activities, setActivities] = useState<SpaceActivity[]>(() => {
     if (isDemo) return getDemoActivities();
     return initialActivities || [];
   });
-  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
   // Subscribe to real-time additions to the activities table
   useEffect(() => {
@@ -138,13 +145,9 @@ export function RecentActivity({
     };
   }, [spaceId, isDemo]);
 
-  const displayedActivities = isHistoryExpanded
-    ? activities
-    : activities.slice(0, 6);
-
   return (
     <section
-      className="flex flex-col rounded-md border border-line bg-paper p-6 shadow-xs sm:p-8"
+      className={`flex h-full max-h-[490px] flex-col rounded-md border border-line bg-paper p-5 shadow-xs sm:p-6 ${className}`}
       aria-labelledby="activity-heading"
     >
       <div className="mb-4 flex items-center justify-between border-b border-line pb-3.5">
@@ -159,19 +162,10 @@ export function RecentActivity({
             Space Activity
           </h2>
         </div>
-        {activities.length > 6 && (
-          <button
-            type="button"
-            onClick={() => setIsHistoryExpanded((prev) => !prev)}
-            className="cursor-pointer text-xs text-muted transition-colors hover:text-ink focus:outline-none"
-          >
-            {isHistoryExpanded ? 'Show Recent' : `History (${activities.length})`}
-          </button>
-        )}
       </div>
 
       {activities.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed border-line p-6 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center rounded-md border border-dashed border-line p-6 text-center">
           <p className="m-0 text-xs font-medium text-ink">
             No activity recorded yet
           </p>
@@ -180,15 +174,11 @@ export function RecentActivity({
           </p>
         </div>
       ) : (
-        <ol
-          className={`m-0 flex list-none flex-col gap-4 p-0 transition-all duration-300 ${
-            isHistoryExpanded ? 'max-h-[380px] overflow-y-auto pr-1' : ''
-          }`}
-        >
-          {displayedActivities.map((activity) => (
+        <ol className="m-0 flex min-h-0 flex-1 list-none flex-col gap-4 overflow-y-auto p-0 pr-1.5">
+          {activities.map((activity) => (
             <li
               key={activity.id}
-              className="flex items-start gap-3 animate-[rise-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]"
+              className="flex animate-[rise-in_220ms_cubic-bezier(0.16,1,0.3,1)_both] items-start gap-3"
             >
               <span
                 className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${getActivityDotColor(

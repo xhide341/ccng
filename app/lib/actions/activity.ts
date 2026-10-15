@@ -2,6 +2,7 @@
 
 import { getSupabaseServerClient } from '../supabase/server';
 import { ActivityKind, ActivityPayload } from '../activity-types';
+import { sendDiscordActivityNotification } from './discord';
 
 export async function logActivityAction({
   spaceId,
@@ -42,6 +43,14 @@ export async function logActivityAction({
       console.error('Failed to log activity:', error);
       return { success: false, error: error.message };
     }
+
+    // Trigger Discord notification asynchronously (non-blocking)
+    void sendDiscordActivityNotification({
+      spaceId,
+      kind,
+      payload,
+      actorId: effectiveActorId,
+    });
 
     return { success: true };
   } catch (err) {

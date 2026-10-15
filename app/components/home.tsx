@@ -2,15 +2,18 @@
 
 import { useState } from 'react';
 import type { DailyEntry } from '../lib/daily-content';
-import { signInWithGoogle, signInAsDemo } from '../lib/auth';
-import { TodoItem } from './todo-item';
+import { signInWithGoogle } from '../lib/auth';
+import { DailyTodo } from './daily-todo';
 import { SharedCalendar } from './calendar/shared-calendar';
 import { GoogleOneTap } from './google-one-tap';
-import { Topbar } from './topbar';
-import { WelcomeHeader } from './welcome-header';
-import { MantraBanner } from './mantra-banner';
+import { Header } from './header';
+import { WelcomeHero } from './welcome-hero';
+import { DailyQuotes } from './daily-quotes';
+import { PostItNote } from './post-it-note';
 import { NoticeToast } from './notice-toast';
 import { RecentActivity } from './recent-activity';
+import { SpaceRecap } from './space-recap';
+import { SpaceSettings } from './space-settings';
 
 type Todo = {
   id: number;
@@ -54,6 +57,13 @@ const initialTodos: Todo[] = [
   },
 ];
 
+const demoYesterdayTasks = [
+  { id: 'dy-1', title: 'Pick up fresh sourdough from bakery', tag: 'home', completed: true, assigneeName: 'Jon' },
+  { id: 'dy-2', title: 'Confirm dinner reservations for 7 PM', tag: 'care', completed: true, assigneeName: 'Mara' },
+  { id: 'dy-3', title: 'Plan weekend trip itinerary', tag: 'weekend', completed: true, assigneeName: 'Shared' },
+  { id: 'dy-4', title: 'Water the balcony ferns', tag: 'home', completed: false, assigneeName: 'Jon' },
+];
+
 type HomeContentProps = {
   dailyEntry?: DailyEntry | null;
 };
@@ -65,6 +75,12 @@ export function HomeContent({ dailyEntry: initialDailyEntry }: HomeContentProps 
   const [authError, setAuthError] = useState('');
 
   const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const demoDateLabel = yesterday.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
   const dailyEntry = initialDailyEntry ?? null;
   const completedTodos = todos.filter((todo) => todo.completed).length;
 
@@ -92,9 +108,6 @@ export function HomeContent({ dailyEntry: initialDailyEntry }: HomeContentProps 
     }
   }
 
-  function handleDemoLogin() {
-    signInAsDemo();
-  }
 
   function toggleTodo(id: number) {
     setTodos((current) =>
@@ -143,29 +156,41 @@ export function HomeContent({ dailyEntry: initialDailyEntry }: HomeContentProps 
     <main className="min-h-screen bg-linen text-ink">
       <GoogleOneTap />
 
-      <Topbar
+      <Header
         spaceLabel="Previewing Space"
         isGuest={true}
         onGoogleSignIn={handleGoogleLogin}
-        onDemoSignIn={handleDemoLogin}
         authLoading={authLoading}
         authError={authError}
         homeLink="/"
       />
 
-      <div className="w-full max-w-[1440px] mx-auto px-5 sm:px-8 md:px-12 py-10 md:py-16">
-        <WelcomeHeader
+      <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 md:px-12 md:py-16">
+        <WelcomeHero
           presenceText="Preview Mode · Sign in above"
           date={today}
         />
 
-        {dailyEntry && (
-          <MantraBanner
-            mantra={dailyEntry.mantra}
-            source={dailyEntry.source}
-            date={today}
+        <div className="my-6 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2">
+          {dailyEntry && (
+            <DailyQuotes
+              mantra={dailyEntry.mantra}
+              source={dailyEntry.source}
+              date={today}
+              className="h-full"
+            />
+          )}
+
+          <PostItNote
+            userName="Shon"
+            partnerName="Chara"
+            initialContent="Don't forget we have dinner reservations at 7! Can't wait ✨"
+            initialAuthorId="demo-partner"
+            initialUpdatedAt={new Date().toISOString()}
+            isDemo={true}
+            className="h-full"
           />
-        )}
+        </div>
 
         {/* Expanded Todo Section */}
         <section
@@ -220,7 +245,7 @@ export function HomeContent({ dailyEntry: initialDailyEntry }: HomeContentProps 
               ) : (
                 <ul className="m-0 list-none divide-y divide-line p-0">
                   {userTodos.map((todo) => (
-                    <TodoItem
+                    <DailyTodo
                       key={`user-${todo.id}`}
                       todo={todo}
                       initialEditing={todo.isNew}
@@ -250,7 +275,7 @@ export function HomeContent({ dailyEntry: initialDailyEntry }: HomeContentProps 
               ) : (
                 <ul className="m-0 list-none divide-y divide-line p-0">
                   {partnerTodos.map((todo) => (
-                    <TodoItem
+                    <DailyTodo
                       key={`partner-${todo.id}`}
                       todo={todo}
                       initialEditing={todo.isNew}
@@ -271,50 +296,28 @@ export function HomeContent({ dailyEntry: initialDailyEntry }: HomeContentProps 
         <SharedCalendar isDemo={true} />
 
         {/* Lower Grid: Activity & Pairing summary */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 mt-6">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <RecentActivity isDemo={true} />
 
-          <aside
-            className="relative flex flex-col justify-between p-6 sm:p-8 rounded-md border border-line bg-paper shadow-xs overflow-hidden"
-            aria-labelledby="pairing-title"
-          >
-            <div>
-              <p className="m-0 mb-1 text-sage-dark text-[10px] font-bold uppercase tracking-widest leading-tight">
-                Connected Space
-              </p>
-              <h2 id="pairing-title" className="m-0 mb-2 text-ink font-display text-2xl font-normal">
-                Just the two of you.
-              </h2>
-              <p className="m-0 text-muted text-sm leading-relaxed">
-                Link accounts with your partner to share a calm, synchronized Space.
-              </p>
-            </div>
+          <div className="flex flex-col gap-6">
+            <SpaceRecap
+              summary="Yesterday was steady and well-carried! You checked off dinner reservations and planned the weekend trip, while Jon picked up fresh sourdough and scheduled the vet visit."
+              completedCount={3}
+              dateLabel={demoDateLabel}
+              userName={userName}
+              partnerName={partnerName}
+              isSolo={false}
+              tasks={demoYesterdayTasks}
+            />
 
-            <div className="flex items-center gap-3 my-6">
-              <span className="grid place-items-center w-9 h-9 rounded-full border border-line bg-paper-soft text-sage-dark font-display font-semibold text-sm">
-                M
-              </span>
-              <span className="w-4 border-t border-dashed border-stone" />
-              <span className="grid place-items-center w-9 h-9 rounded-full border border-line bg-paper-soft text-sage-dark font-display font-semibold text-sm">
-                J
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-3 mt-auto pt-4 border-t border-line">
-              <button
-                type="button"
-                className="w-full py-2.5 px-4 rounded border border-sage-dark bg-sage-dark text-white text-xs font-semibold hover:bg-[#395241] transition-all"
-                onClick={handleGoogleLogin}
-                disabled={authLoading}
-              >
-                {authLoading ? 'Connecting...' : 'Sign in to pair'}
-              </button>
-              <div className="flex items-center justify-between text-xs text-muted">
-                <span>Pairing Code</span>
-                <strong className="text-ink font-mono tracking-wider">CCNG-DEMO</strong>
-              </div>
-            </div>
-          </aside>
+            <SpaceSettings
+              userName={userName}
+              partnerName={partnerName}
+              pairingCode="CCNG-DEMO"
+              hasGoogleCalendar={false}
+              isDemo={true}
+            />
+          </div>
         </div>
       </div>
 

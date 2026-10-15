@@ -133,7 +133,7 @@ export function CalendarMonthGrid({
               onClick={() => onSelectDate(date)}
               className={`group relative flex h-10 flex-col items-center justify-center rounded-md text-xs transition-all ${
                 isSelected
-                  ? 'bg-ink font-semibold text-paper shadow-xs'
+                  ? 'bg-sage-dark font-semibold text-paper shadow-xs'
                   : isToday
                     ? 'border border-sage bg-sage/10 font-bold text-sage-dark'
                     : isCurrentMonth
