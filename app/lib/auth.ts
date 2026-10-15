@@ -6,6 +6,10 @@ export async function signInWithGoogle(
   next: string = '/space',
   options?: { prompt?: string }
 ) {
+  if (typeof document !== 'undefined') {
+    document.cookie = `${DEMO_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+  }
+
   const supabase = getSupabaseBrowserClient();
   const origin = window.location.origin;
   

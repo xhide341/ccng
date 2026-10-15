@@ -16,34 +16,34 @@ export default async function SpacePage({ searchParams }: SpacePageProps) {
   const params = await searchParams;
   const codeParam = typeof params.code === 'string' ? params.code : undefined;
 
-  const cookieStore = await cookies();
-  const isDemo = cookieStore.get(DEMO_COOKIE_NAME)?.value === 'true';
-
-  const dailyEntry = await getDailyEntry();
-
-  if (isDemo) {
-    const demoEvents = await getCalendarEventsAction(true);
-    const demoRecap = await getDailyRecap({ isDemo: true });
-    return (
-      <SpaceDashboard
-        code={codeParam}
-        userEmail="mara@ccng.app"
-        userName="Mara"
-        userFullName="Mara Jensen"
-        initialCalendarEvents={demoEvents}
-        isDemo={true}
-        dailyEntry={dailyEntry}
-        initialRecap={demoRecap}
-      />
-    );
-  }
-
   const supabase = await getSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const dailyEntry = await getDailyEntry();
+
   if (!user) {
+    const cookieStore = await cookies();
+    const isDemo = cookieStore.get(DEMO_COOKIE_NAME)?.value === 'true';
+
+    if (isDemo) {
+      const demoEvents = await getCalendarEventsAction(true);
+      const demoRecap = await getDailyRecap({ isDemo: true });
+      return (
+        <SpaceDashboard
+          code={codeParam}
+          userEmail="mara@ccng.app"
+          userName="Mara"
+          userFullName="Mara Jensen"
+          initialCalendarEvents={demoEvents}
+          isDemo={true}
+          dailyEntry={dailyEntry}
+          initialRecap={demoRecap}
+        />
+      );
+    }
+
     redirect('/');
   }
 

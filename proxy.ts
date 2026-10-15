@@ -45,6 +45,10 @@ export async function proxy(request: NextRequest) {
   const isAuthenticated = hasSupabaseUser || isDemoUser;
   const pathname = request.nextUrl.pathname;
 
+  if (hasSupabaseUser && isDemoUser) {
+    supabaseResponse.cookies.delete('ccng_demo_user');
+  }
+
   // protect /space from guests
   if (pathname.startsWith('/space') && !isAuthenticated) {
     const redirectUrl = request.nextUrl.clone();
@@ -56,7 +60,14 @@ export async function proxy(request: NextRequest) {
   if (pathname === '/' && isAuthenticated) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/space';
-    return NextResponse.redirect(redirectUrl);
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    if (hasSupabaseUser) {
+      redirectResponse.cookies.delete('ccng_demo_user');
+    }
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+    return redirectResponse;
   }
 
   return supabaseResponse;
