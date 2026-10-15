@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { logBrowserActivity } from '../lib/activity-client';
 
@@ -94,13 +95,17 @@ export function PostItNote({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const isEditingRef = useRef(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedContentRef = useRef<string>(initialContent);
   const lastExitEditTimeRef = useRef<number>(0);
 
-  const [prevInitialContent, setPrevInitialContent] = useState(initialContent);
-  if (prevInitialContent !== initialContent) {
-    setPrevInitialContent(initialContent);
+  const [prevInitialKey, setPrevInitialKey] = useState(
+    `${initialContent}|${initialAuthorId}|${initialUpdatedAt}`
+  );
+  const currentInitialKey = `${initialContent}|${initialAuthorId}|${initialUpdatedAt}`;
+  if (prevInitialKey !== currentInitialKey) {
+    setPrevInitialKey(currentInitialKey);
     if (!isEditing) {
       setContent(initialContent);
       setDraft(initialContent);
@@ -117,15 +122,53 @@ export function PostItNote({
     lastSavedContentRef.current = initialContent;
   }, [initialContent]);
 
-  // Realtime subscription for live sync between partners
+  // Realtime subscription for live sync between partners (Broadcast + Postgres Changes)
   useEffect(() => {
     if (isDemo || !spaceId) return;
 
     const supabase = getSupabaseBrowserClient();
     const channelName = `realtime:space_notes:${spaceId}`;
 
-    const channel = supabase
-      .channel(channelName)
+    const channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: false },
+      },
+    });
+
+    channelRef.current = channel;
+
+    channel
+      .on(
+        'broadcast',
+        { event: 'note_updated' },
+        ({
+          payload,
+        }: {
+          payload: {
+            content?: string;
+            author_id?: string | null;
+            updated_at?: string | null;
+          };
+        }) => {
+          if (!isEditingRef.current) {
+            const newText = payload.content || '';
+            setContent(newText);
+            setDraft(newText);
+            setAuthorId(payload.author_id ?? null);
+            setUpdatedAt(payload.updated_at ?? null);
+            lastSavedContentRef.current = newText;
+          }
+        }
+      )
+      .on('broadcast', { event: 'note_cleared' }, () => {
+        if (!isEditingRef.current) {
+          setContent('');
+          setDraft('');
+          setAuthorId(null);
+          setUpdatedAt(null);
+          lastSavedContentRef.current = '';
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -160,9 +203,12 @@ export function PostItNote({
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[Realtime:space_notes:${spaceId}] Status:`, status);
+      });
 
     return () => {
+      channelRef.current = null;
       void supabase.removeChannel(channel);
     };
   }, [isDemo, spaceId]);
@@ -194,14 +240,23 @@ export function PostItNote({
         const supabase = getSupabaseBrowserClient();
 
         if (trimmed === '') {
-          // Clear note
+          // Clear note in database
           await supabase.from('space_notes').delete().eq('space_id', spaceId);
           setContent('');
           setAuthorId(null);
           setUpdatedAt(null);
           lastSavedContentRef.current = '';
+
+          // Broadcast clear event to partner immediately
+          if (channelRef.current) {
+            void channelRef.current.send({
+              type: 'broadcast',
+              event: 'note_cleared',
+              payload: {},
+            });
+          }
         } else {
-          // Upsert note
+          // Upsert note in database
           const { error } = await supabase.from('space_notes').upsert({
             space_id: spaceId,
             content: trimmed,
@@ -219,6 +274,19 @@ export function PostItNote({
           setAuthorId(userId || null);
           setUpdatedAt(nowIso);
           lastSavedContentRef.current = trimmed;
+
+          // Broadcast updated note to partner immediately
+          if (channelRef.current) {
+            void channelRef.current.send({
+              type: 'broadcast',
+              event: 'note_updated',
+              payload: {
+                content: trimmed,
+                author_id: userId || null,
+                updated_at: nowIso,
+              },
+            });
+          }
 
           // Log to Recent Activity
           void logBrowserActivity({
