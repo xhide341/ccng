@@ -22,21 +22,13 @@ export async function createSpaceAction(): Promise<{
 }> {
   try {
     const supabase = await getSupabaseServerClient();
-    const { error: spaceError } = await supabase.rpc('create_space');
+    const { data: code, error: spaceError } = await supabase.rpc('create_space');
     if (spaceError) {
       return { success: false, error: spaceError.message };
     }
 
-    const code = generatePairingCode();
-    const { error: codeError } = await supabase.rpc('create_pairing_code', {
-      p_code: code,
-    });
-    if (codeError) {
-      return { success: false, error: codeError.message };
-    }
-
     revalidatePath('/space');
-    return { success: true, code };
+    return { success: true, code: (code as string) || undefined };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to create Space';
     return { success: false, error: message };
@@ -93,6 +85,35 @@ export async function redeemPairingCodeAction(
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to redeem pairing code';
+    return { success: false, error: message };
+  }
+}
+
+export async function leaveSpaceAction(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'User is not authenticated' };
+    }
+
+    const { error } = await supabase.rpc('leave_space');
+    if (error) {
+      console.error('Failed to leave space:', error);
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/space');
+    return { success: true };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : 'Failed to leave space';
     return { success: false, error: message };
   }
 }

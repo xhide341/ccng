@@ -6,15 +6,21 @@ import {
   createSpaceAction,
   redeemPairingCodeAction,
 } from '../lib/actions/pairing';
-import { Topbar } from './topbar';
+import { Header } from './header';
 
 type SpaceOnboardingProps = {
   userEmail?: string;
+  userName?: string;
+  userFullName?: string;
+  userAvatarUrl?: string;
   initialCode?: string;
 };
 
 export function SpaceOnboarding({
   userEmail,
+  userName,
+  userFullName,
+  userAvatarUrl,
   initialCode = '',
 }: SpaceOnboardingProps) {
   const router = useRouter();
@@ -75,9 +81,12 @@ export function SpaceOnboarding({
 
   return (
     <main className="min-h-screen bg-linen text-ink">
-      <Topbar
-        spaceLabel="Getting Started"
+      <Header
+        spaceLabel="Welcome"
         userEmail={userEmail}
+        userName={userName}
+        userFullName={userFullName}
+        userAvatarUrl={userAvatarUrl}
         isGuest={false}
         homeLink="/space"
       />
@@ -122,8 +131,32 @@ export function SpaceOnboarding({
                 className="flex w-full items-center justify-center rounded border border-sage-dark bg-sage-dark px-5 py-3 text-sm font-semibold tracking-wide text-white transition-all hover:-translate-y-0.5 hover:bg-[#395241] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={handleCreateSpace}
                 disabled={isCreating || isJoining}
+                aria-label={isCreating ? 'Creating Space' : 'Create a Space'}
               >
-                {isCreating ? 'Creating Space...' : 'Create a Space'}
+                {isCreating ? (
+                  <svg
+                    className="h-5 w-5 animate-spin text-white"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                ) : (
+                  'Create a Space'
+                )}
               </button>
               {error && (
                 <div
@@ -198,8 +231,32 @@ export function SpaceOnboarding({
                 type="submit"
                 className="flex w-full items-center justify-center rounded border border-line bg-paper px-5 py-3 text-sm font-semibold tracking-wide text-ink transition-all hover:-translate-y-0.5 hover:border-sage hover:bg-paper-soft active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isCreating || isJoining || code.trim().length < 6}
+                aria-label={isJoining ? 'Joining Space' : 'Join Space'}
               >
-                {isJoining ? 'Joining Space...' : 'Join Space'}
+                {isJoining ? (
+                  <svg
+                    className="h-5 w-5 animate-spin text-ink"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                ) : (
+                  'Join Space'
+                )}
               </button>
             </form>
           </section>
